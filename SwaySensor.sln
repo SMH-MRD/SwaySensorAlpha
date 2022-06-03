@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.1022
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30711.63
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SwaySensor", "SwaySensor\SwaySensor.vcxproj", "{BC08E6BB-0A5C-452F-BB6D-42AD7F6CE911}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SockUDP", "SockUDP\SockUDP.vcxproj", "{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,14 @@ Global
 		{BC08E6BB-0A5C-452F-BB6D-42AD7F6CE911}.Release|x64.Build.0 = Release|x64
 		{BC08E6BB-0A5C-452F-BB6D-42AD7F6CE911}.Release|x86.ActiveCfg = Release|Win32
 		{BC08E6BB-0A5C-452F-BB6D-42AD7F6CE911}.Release|x86.Build.0 = Release|Win32
+		{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}.Debug|x64.ActiveCfg = Debug|x64
+		{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}.Debug|x64.Build.0 = Debug|x64
+		{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}.Debug|x86.ActiveCfg = Debug|Win32
+		{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}.Debug|x86.Build.0 = Debug|Win32
+		{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}.Release|x64.ActiveCfg = Release|x64
+		{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}.Release|x64.Build.0 = Release|x64
+		{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}.Release|x86.ActiveCfg = Release|Win32
+		{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

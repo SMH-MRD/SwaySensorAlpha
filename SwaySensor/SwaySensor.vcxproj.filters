@@ -27,11 +27,24 @@
     <ClInclude Include="SwaySensor.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="SwaySensor.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
+    <ClInclude Include="Inc\CAgent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\CEnvironment.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\CHelper.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\CPolicy.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\CScada.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\CTaskObj.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SwaySensor.rc">
@@ -45,5 +58,64 @@
     <Image Include="SwaySensor.ico">
       <Filter>リソース ファイル</Filter>
     </Image>
+    <Image Include="Res\BmpAgent.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpBlue.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpEnvironment.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpGray.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpGreen.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpLightBlue.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpMagenta.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpPolicy.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpRed.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpScada.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpWhite.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Res\BmpYellow.bmp">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="SwaySensor.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CAgent.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CEnvironment.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CHelper.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CPolicy.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CScada.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CTaskObj.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
