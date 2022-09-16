@@ -6,8 +6,6 @@
 #include <iostream>
 #include "CHelper.h"
 
-using namespace std;
-
 //============================================================================
 // define定義
 // スレッドで実行する関数選択用定義
@@ -26,7 +24,7 @@ using namespace std;
 // 構造体/共用体定義
 //----------------------------------------------------------------------------
 // タスクオブジェクトインデックス構造体    
-typedef struct tagTASK_INDEX {
+typedef struct TAG_TASK_INDEX {
     int environment;
     int scada;
     int agent;
@@ -35,14 +33,14 @@ typedef struct tagTASK_INDEX {
     int client;
     int manage;
     int dummy;
-} ST_TASK_INDEX, *PST_TASK_INDEX;
+} TASK_INDEX, *PTASK_INDEX;
 
 //----------------------------------------------------------------------------
 // タスクオブジェクトの個別管理情報構造体
-typedef struct tagTHREAD_INFO {
+typedef struct TAG_THREAD_INFO {
     // オブジェクト識別情報
-    WCHAR   name[24];   // オブジェクト名
-    WCHAR   sname[8];   // オブジェクト略称
+    std::wstring name;  // オブジェクト名
+    std::wstring sname; // オブジェクト略称
     HBITMAP hBmp;       // オブジェクト識別用ビットマップ
 
     // スレッド設定内容
@@ -50,7 +48,6 @@ typedef struct tagTHREAD_INFO {
     unsigned int ID;    // スレッドID
     HANDLE       hndl;  // スレッドハンドル
     HANDLE       hevents[TASK_EVENT_MAX];   // イベントハンドル
-//  int          n_active_events = 1;       // 有効なイベント数
     int          n_active_events;                               // 有効なイベント数
     int          event_triggered;                               // 発生したイベント番号
     unsigned int cycle_ms;                                      // スレッド実行設定周期
@@ -83,15 +80,45 @@ typedef struct tagTHREAD_INFO {
 
     // 外部インターフェース
     unsigned long* psys_counter;                                // メインシステムカウンターの参照先ポインタ
-    unsigned       work_select;                                 // スレッド実行の関数の種類を指定
+    unsigned int   work_select;                                 // スレッド実行の関数の種類を指定
 
-    tagTHREAD_INFO() : n_active_events(1),                      // 有効なイベント数
-                       cnt_PNLlist_msg(0),                      // パネルメッセージリストのカウント数
-                       panel_func_id(1),                        // パネルfunctionボタンの選択内容
-                       panel_type_id(1),                        // パネルtypeボタンの選択内容
-                       work_select(0)                           // スレッド実行の関数の種類を指定
+    TAG_THREAD_INFO()
+        : name(L"")
+        , sname(L"")
+        , hBmp(NULL)
+        , index(0)
+        , ID(0)
+        , hndl(NULL)
+        , hevents{}
+        , n_active_events(1)
+        , event_triggered(0)
+        , cycle_ms(DEFAUT_TASK_CYCLE)
+        , cycle_count(0)
+        , trigger_type(0)
+        , priority(THREAD_PRIORITY_NORMAL)
+        , thread_com(REPEAT_INFINIT)
+        , start_time(0)
+        , act_time(0)
+        , period(0)
+        , act_count(0)
+        , total_act(0)
+        , time_over_count(0)
+        , hWnd_parent(NULL)
+        , hWnd_msgStatics(NULL)
+        , hWnd_opepane(NULL)
+        , hWnd_msgList(NULL)
+        , hWnd_work(NULL)
+        , hInstance(NULL)
+        , cnt_PNLlist_msg(0)
+        , panel_func_id(0)
+        , panel_type_id(0)
+        , psys_counter(NULL)
+        , work_select(THREAD_WORK_IDLE)
     {}
-} ST_THREAD_INFO, *PST_THREAD_INFO;
+} THREAD_INFO, *PTHREAD_INFO;
+
+//////////////////////////////////////////////////////////////////////////////
+// CTaskObj
 
 class CTaskObj
 {
@@ -99,27 +126,27 @@ public:
     CTaskObj();
     virtual ~CTaskObj();
 
-    ST_THREAD_INFO ThreadInfo;
+    THREAD_INFO ThreadInfo;
 
-    virtual void InitTask(void* pobj);
-    unsigned __stdcall Run(void* param);    // スレッド実行対象関数
+    virtual void init_task(void* pobj);
+    unsigned __stdcall run(void* param);    // スレッド実行対象関数
 
-    virtual LRESULT CALLBACK PanelProc(HWND hDlg, UINT msg, WPARAM wp, LPARAM lp);
+    virtual LRESULT CALLBACK cb_panel_proc(HWND hDlg, UINT msg, WPARAM wp, LPARAM lp);
 
-    unsigned int SetWork(int work_id);
-    virtual void SetPanelPbTxt(void);   // タブパネルのFunctionボタンのStaticテキストを設定
+    unsigned int set_work(int work_id);
+    virtual void set_window(void);
 
 protected:
-    CHelper        tool;
-    ostringstream  s;
-    wostringstream ws;
-    wstring        wstr;
-    string         str;
+    CHelper             tool;
+    std::ostringstream  s;
+    std::wostringstream ws;
+    std::wstring        wstr;
+    std::string         str;
 
-    virtual void RoutineWork(void* param);
-    virtual void OptionalWork1(void* param);
-    virtual void OptionalWork2(void* param);
-    virtual void DefaultWork(void* param);
+    virtual void routine_work(void* param);
+    virtual void optional_work1(void* param);
+    virtual void optional_work2(void* param);
+    virtual void default_work(void* param);
 
 private:
 };

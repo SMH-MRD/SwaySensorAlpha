@@ -10,14 +10,15 @@
 #include "CPolicy.h"        // Policyクラス
 #include "CAgent.h"         // Agentクラス
 #include "CScada.h"         // Scadaクラス
+#include "CShared.h"        // 
 
 #include <string>
 #include <time.h>
 #include <vector>
 
-#include <windowsx.h> 
-#include <commctrl.h> 
-#include <mmsystem.h> 
+#include <windowsx.h>
+#include <commctrl.h>
+#include <mmsystem.h>
 
 #define MAX_LOADSTRING 100
 
@@ -26,20 +27,19 @@ HINSTANCE hInst;                            // 現在のインターフェイス
 WCHAR     szTitle[MAX_LOADSTRING];          // タイトルバーのテキスト
 WCHAR     szWindowClass[MAX_LOADSTRING];    // メインウィンドウクラス名
 
-SYSTEMTIME gAppStartTime;                   // アプリケーション開始時間
-LPTSTR     pszInifile;                      // iniファイルのパス
+SYSTEMTIME g_AppStartTime;                  // アプリケーション開始時間
 
-vector<void*> VectpCTaskObj;                // TaskObjのポインタ
-ST_TASK_INDEX g_TaskIndex;                  // TaskObjのインデックス
-
-ST_APP_MANAGE stAppManage;                  // アプリケーション管理構造体
+std::vector<void*> VectpCTaskObj;           // TaskObjのポインタ
+TASK_INDEX         g_TaskIndex;             // TaskObjのインデックス
+APP_MANAGE         g_AppManage;             // アプリケーション管理
+CShared*           g_pShared = NULL;        // タスク間共有データのポインタ
 
 // スタティック変数:
-static HWND              hWnd_status_bar;   // ステータスバーのウィンドウのハンドル
-static HWND              hTabWnd;           // 操作パネル用タブコントロールウィンドウのハンドル
-static ST_KNL_MANAGE_SET KNLManageSet;      // マルチスレッド管理用構造体
-static vector<HWND>      VectTweetHandle;   // メインウィンドウのスレッドツイートメッセージ表示Staticハンドル
-static vector<HANDLE>    VectHevent;        // マルチスレッド用イベントのハンドル
+static HWND                hWnd_status_bar; // ステータスバーのウィンドウのハンドル
+static HWND                hTabWnd;         // 操作パネル用タブコントロールウィンドウのハンドル
+static KNL_MANAGE_SET      KNLManageSet;    // マルチスレッド管理用構造体
+static std::vector<HWND>   VectTweetHandle; // メインウィンドウのスレッドツイートメッセージ表示Staticハンドル
+static std::vector<HANDLE> VectHevent;      // マルチスレッド用イベントのハンドル
 
 static HIMAGELIST hImgListTaskIcon;         // タスクアイコン用イメージリスト
 
@@ -91,9 +91,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     //
-    for (unsigned int i = (KNLManageSet.num_of_task - 1); i = 0; i--) {
-        CTaskObj* pTaskObj = (CTaskObj*)VectpCTaskObj[i];
-        if (pTaskObj != NULL) {delete pTaskObj;}
+    for (int idx = (KNLManageSet.num_of_task - 1); idx >= 0; idx--) {
+        CTaskObj* pTaskObj = reinterpret_cast<CTaskObj*>(VectpCTaskObj[idx]);
+        if (pTaskObj != NULL) {
+            pTaskObj->ThreadInfo.thread_com = TERMINATE_THREAD;
+            PulseEvent(VectHevent[idx]);
+            Sleep(100);
+            delete pTaskObj;
+        }
+    }
+
+    // タスク間共有データ
+    if (g_pShared != NULL) {
+        delete g_pShared;
     }
 
     return (int) msg.wParam;
@@ -158,20 +168,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 
+    setlocale(LC_ALL, "");
+
     //----------------------------------------------------------------------------
-    // ini file path設定
-    static WCHAR dstpath[_MAX_PATH], szDrive[_MAX_DRIVE], szPath[_MAX_PATH], szFName[_MAX_FNAME], szExt[_MAX_EXT];
-    // exe failのpathを取得
-    GetModuleFileName(NULL, dstpath, sizeof(dstpath) / sizeof(*dstpath));
-    // 取得したpathを分割
-    _wsplitpath_s(dstpath,
-                  szDrive, sizeof(szDrive) / sizeof(*szDrive),
-                  szPath,  sizeof(szPath) / sizeof(*szPath),
-                  szFName, sizeof(szFName) / sizeof(*szFName),
-                  szExt,   sizeof(szExt) / sizeof(*szExt));
-    // フォルダのパスとiniファイルのパスに合成
-    wsprintf(dstpath, L"%s%s%s%s.%s", szDrive, szPath, FOLDER_OF_INIFILE, szFName, EXT_OF_INIFILE);
-    pszInifile = dstpath;
+    // タスク間共有データ設定
+    g_pShared = new CShared();
+    g_pShared->set_appconfig();
 
     //----------------------------------------------------------------------------
     // タスク設定
@@ -197,7 +199,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
             return((DWORD)FALSE);
         }
 
-        _RPT1(_CRT_WARN, "MMTimer Period = %d\n", KNLManageSet.mmt_resolution);
+        _RPT1(_CRT_WARN, ">>>MMTimer Period = %d\n", KNLManageSet.mmt_resolution);
 
         // マルチメディアタイマーセット
         KNLManageSet.KnlTick_TimerID = timeSetEvent(KNLManageSet.cycle_base, KNLManageSet.mmt_resolution, (LPTIMECALLBACK)AlarmHandlar, 0, TIME_PERIODIC);
@@ -274,7 +276,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             MoveWindow(hTabWnd, TAB_POS_X, TAB_POS_Y, TAB_DIALOG_W, TAB_DIALOG_H, TRUE);
 
             for (unsigned int i = 0; i < VectpCTaskObj.size(); i++) {
-                CTaskObj* pTaskObj = (CTaskObj*)VectpCTaskObj[i];
+                CTaskObj* pTaskObj = reinterpret_cast<CTaskObj*>(VectpCTaskObj[i]);
                 MoveWindow(pTaskObj->ThreadInfo.hWnd_opepane, TAB_POS_X, TAB_POS_Y + TAB_SIZE_H, TAB_DIALOG_W, TAB_DIALOG_H - TAB_SIZE_H, TRUE);
             }
         }
@@ -284,13 +286,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             int tab_index = TabCtrl_GetCurSel(((NMHDR*)lParam)->hwndFrom);
 
             for (unsigned int i = 0; i < VectpCTaskObj.size(); i++) {
-                CTaskObj* pTaskObj = (CTaskObj*)VectpCTaskObj[i];
+                CTaskObj* pTaskObj = reinterpret_cast<CTaskObj*>(VectpCTaskObj[i]);
                 MoveWindow(pTaskObj->ThreadInfo.hWnd_opepane, TAB_POS_X, TAB_POS_Y + TAB_SIZE_H, TAB_DIALOG_W, TAB_DIALOG_H - TAB_SIZE_H, TRUE);
                 if ((VectpCTaskObj.size() - 1 - pTaskObj->ThreadInfo.index) == tab_index) {
                     ShowWindow(pTaskObj->ThreadInfo.hWnd_opepane, SW_SHOW);
                     HWND hname_static = GetDlgItem(pTaskObj->ThreadInfo.hWnd_opepane, IDC_STATIC_TASKNAME);
-                    SetWindowText(hname_static, pTaskObj->ThreadInfo.name);
-                    pTaskObj->set_panel_pb_txt();
+                    SetWindowText(hname_static, pTaskObj->ThreadInfo.name.c_str());
+                    pTaskObj->set_window();
 
 //////////////////////////////////////////////////////////////////////////////
 #if 0
@@ -352,15 +354,14 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 /// @note
 static unsigned __stdcall ThreadGateFunc(void* pObj)
 {
-    CTaskObj* pTaskObj = (CTaskObj*)pObj;
-    return pTaskObj->Run(pObj);
+    CTaskObj* pTaskObj = reinterpret_cast<CTaskObj*>(pObj);
+    return pTaskObj->run(pObj);
 }
 
 /// @brief スレッドタスクの登録、設定
 /// @param
 /// @return 
 /// @note
-#define INI_SCTION_OBJECT_COLUMN_NUM    3
 int InitTasks(HWND hWnd)
 {
     HBITMAP   hBmp;
@@ -376,10 +377,13 @@ int InitTasks(HWND hWnd)
     hImgListTaskIcon = ImageList_Create(32, 32, ILC_COLOR | ILC_MASK, 2, 0);
 
     //----------------------------------------------------------------------------
+    // タスク設定
+    CONFIG_TASK cnfg_task;
+    g_pShared->get_appconfig(&cnfg_task);
     // Task1 設定 ENVIRONMENT
     {
         // タスクインスタンス作成->リスト登録
-        pTaskObj = new CEnvironment;
+        pTaskObj = dynamic_cast<CTaskObj*>(new CEnvironment);
         VectpCTaskObj.push_back((void*)pTaskObj);
         g_TaskIndex.environment = task_index;
 
@@ -395,16 +399,10 @@ int InitTasks(HWND hWnd)
         DeleteObject(hBmp);
 
         // オブジェクト情報のセット
-        DWORD strstat;
-        WCHAR str[256] = {0};
-        strstat = GetPrivateProfileString(INI_SCTION_OBJECT, INI_KEY_ENVIRONMENT, L"-", str, sizeof(str) / sizeof(*str), PATH_OF_INIFILE);
-        if (INI_SCTION_OBJECT_COLUMN_NUM != _stscanf_s(str,
-                                                       L"%u,%[^,],%[^,]",
-                                                       &pTaskObj->ThreadInfo.cycle_ms,
-                                                       pTaskObj->ThreadInfo.name, sizeof(pTaskObj->ThreadInfo.name) / sizeof(*pTaskObj->ThreadInfo.name),
-                                                       pTaskObj->ThreadInfo.sname, sizeof(pTaskObj->ThreadInfo.sname) / sizeof(*pTaskObj->ThreadInfo.sname))) {
-            pTaskObj->ThreadInfo.cycle_ms = DEFAUT_TASK_CYCLE;
-        }
+        PCONFIG_TASK_DATA task = &cnfg_task.environment;
+        pTaskObj->ThreadInfo.cycle_ms = task->cycletime;
+        pTaskObj->ThreadInfo.name     = task->name;
+        pTaskObj->ThreadInfo.sname    = task->sname;
 
         // 実行関数選択
         pTaskObj->ThreadInfo.work_select = THREAD_WORK_ROUTINE;
@@ -412,12 +410,10 @@ int InitTasks(HWND hWnd)
         // スレッド起動に使うイベント数(定周期タイマーのみの場合1)
         pTaskObj->ThreadInfo.n_active_events = 1;
     }
-
-    //----------------------------------------------------------------------------
     // Task2 設定 POLICY
     {
         // タスクインスタンス作成->リスト登録
-        pTaskObj = new CPolicy;
+        pTaskObj = dynamic_cast<CTaskObj*>(new CPolicy);
         VectpCTaskObj.push_back((void*)pTaskObj);
         g_TaskIndex.policy = task_index;
 
@@ -433,16 +429,10 @@ int InitTasks(HWND hWnd)
         DeleteObject(hBmp);
 
         // オブジェクト情報のセット
-        DWORD strstat;
-        WCHAR str[256] = {0};
-        strstat = GetPrivateProfileString(INI_SCTION_OBJECT, INI_KEY_POLICY, L"-", str, sizeof(str) / sizeof(*str), PATH_OF_INIFILE);
-        if (INI_SCTION_OBJECT_COLUMN_NUM != _stscanf_s(str,
-                                                       L"%u,%[^,],%[^,]",
-                                                       &pTaskObj->ThreadInfo.cycle_ms,
-                                                       pTaskObj->ThreadInfo.name, sizeof(pTaskObj->ThreadInfo.name) / sizeof(*pTaskObj->ThreadInfo.name),
-                                                       pTaskObj->ThreadInfo.sname, sizeof(pTaskObj->ThreadInfo.sname) / sizeof(*pTaskObj->ThreadInfo.sname))) {
-            pTaskObj->ThreadInfo.cycle_ms = DEFAUT_TASK_CYCLE;
-        }
+        PCONFIG_TASK_DATA task = &cnfg_task.policy;
+        pTaskObj->ThreadInfo.cycle_ms = task->cycletime;
+        pTaskObj->ThreadInfo.name     = task->name;
+        pTaskObj->ThreadInfo.sname    = task->sname;
 
         // 実行関数選択
         pTaskObj->ThreadInfo.work_select = THREAD_WORK_ROUTINE;
@@ -450,12 +440,10 @@ int InitTasks(HWND hWnd)
         // スレッド起動に使うイベント数(定周期タイマーのみの場合1)
         pTaskObj->ThreadInfo.n_active_events = 1;
     }
-
-    //----------------------------------------------------------------------------
     // Task3 設定 SCADA
     {
         // タスクインスタンス作成->リスト登録
-        pTaskObj = new CScada;
+        pTaskObj = dynamic_cast<CTaskObj*>(new CScada);
         VectpCTaskObj.push_back((void*)pTaskObj);
         g_TaskIndex.scada = task_index;
 
@@ -471,16 +459,10 @@ int InitTasks(HWND hWnd)
         DeleteObject(hBmp);
 
         // オブジェクト情報のセット
-        DWORD strstat;
-        WCHAR str[256] = {0};
-        strstat = GetPrivateProfileString(INI_SCTION_OBJECT, INI_KEY_SCADA, L"-", str, sizeof(str) / sizeof(*str), PATH_OF_INIFILE);
-        if (INI_SCTION_OBJECT_COLUMN_NUM != _stscanf_s(str,
-                                                       L"%u,%[^,],%[^,]",
-                                                       &pTaskObj->ThreadInfo.cycle_ms,
-                                                       pTaskObj->ThreadInfo.name, sizeof(pTaskObj->ThreadInfo.name) / sizeof(*pTaskObj->ThreadInfo.name),
-                                                       pTaskObj->ThreadInfo.sname, sizeof(pTaskObj->ThreadInfo.sname) / sizeof(*pTaskObj->ThreadInfo.sname))) {
-            pTaskObj->ThreadInfo.cycle_ms = DEFAUT_TASK_CYCLE;
-        }
+        PCONFIG_TASK_DATA task = &cnfg_task.scada;
+        pTaskObj->ThreadInfo.cycle_ms = task->cycletime;
+        pTaskObj->ThreadInfo.name     = task->name;
+        pTaskObj->ThreadInfo.sname    = task->sname;
 
         // 実行関数選択
         pTaskObj->ThreadInfo.work_select = THREAD_WORK_ROUTINE;
@@ -488,12 +470,10 @@ int InitTasks(HWND hWnd)
         // スレッド起動に使うイベント数(定周期タイマーのみの場合1)
         pTaskObj->ThreadInfo.n_active_events = 1;
     }
-
-    //----------------------------------------------------------------------------
     // Task4 設定 AGENT
     {
         // タスクインスタンス作成->リスト登録
-        pTaskObj = new CAgent;
+        pTaskObj = dynamic_cast<CTaskObj*>(new CAgent);
         VectpCTaskObj.push_back((void*)pTaskObj);
         g_TaskIndex.agent = task_index;
 
@@ -509,16 +489,10 @@ int InitTasks(HWND hWnd)
         DeleteObject(hBmp);
 
         // オブジェクト情報のセット
-        DWORD strstat;
-        WCHAR str[256] = {0};
-        strstat = GetPrivateProfileString(INI_SCTION_OBJECT, INI_KEY_AGENT, L"-", str, sizeof(str) / sizeof(*str), PATH_OF_INIFILE);
-        if (INI_SCTION_OBJECT_COLUMN_NUM != _stscanf_s(str,
-                                                       L"%u,%[^,],%[^,]",
-                                                       &pTaskObj->ThreadInfo.cycle_ms,
-                                                       pTaskObj->ThreadInfo.name, sizeof(pTaskObj->ThreadInfo.name) / sizeof(*pTaskObj->ThreadInfo.name),
-                                                       pTaskObj->ThreadInfo.sname, sizeof(pTaskObj->ThreadInfo.sname) / sizeof(*pTaskObj->ThreadInfo.sname))) {
-            pTaskObj->ThreadInfo.cycle_ms = DEFAUT_TASK_CYCLE;
-        }
+        PCONFIG_TASK_DATA task = &cnfg_task.agent;
+        pTaskObj->ThreadInfo.cycle_ms = task->cycletime;
+        pTaskObj->ThreadInfo.name     = task->name;
+        pTaskObj->ThreadInfo.sname    = task->sname;
 
         // 実行関数選択
         pTaskObj->ThreadInfo.work_select = THREAD_WORK_ROUTINE;
@@ -565,7 +539,7 @@ int InitTasks(HWND hWnd)
         }
 
         // 最後に初期化関数呼び出し
-        pTaskObj->InitTask(pTaskObj);
+        pTaskObj->init_task(pTaskObj);
     }
 
     return 1;
@@ -587,13 +561,13 @@ DWORD KNLTaskStartUp()
     if ((myPrcsHndl = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_SET_INFORMATION, FALSE, _getpid())) == NULL) {
         return(GetLastError());
     }
-    _RPT1(_CRT_WARN, "KNL Priority For Windows(before) = %d \n", GetPriorityClass(myPrcsHndl));
+    _RPT1(_CRT_WARN, ">>>KNL Priority For Windows(before) = %d \n", GetPriorityClass(myPrcsHndl));
 
     // 自プロセスのプライオリティを最優先ランクに設定
     if (SetPriorityClass(myPrcsHndl, REALTIME_PRIORITY_CLASS) == 0) {
         return(GetLastError());
     }
-    _RPT1(_CRT_WARN, "KNL Priority For NT(after) = %d \n", GetPriorityClass(myPrcsHndl));
+    _RPT1(_CRT_WARN, ">>>KNL Priority For NT(after) = %d \n", GetPriorityClass(myPrcsHndl));
 
     // アプリケーションタスク数が最大数を超えた場合は終了
     if (VectpCTaskObj.size() >= MAX_APP_TASK) {
@@ -623,7 +597,7 @@ DWORD KNLTaskStartUp()
         else {
             return(GetLastError());
         }
-        _RPT2(_CRT_WARN, "Task[%d]_priority = %d\n", i, GetThreadPriority(pobj->ThreadInfo.hndl));
+        _RPT2(_CRT_WARN, ">>>Task[%d]_priority = %d\n", i, GetThreadPriority(pobj->ThreadInfo.hndl));
 
         pobj->ThreadInfo.act_count       = 0;   // 基本Tickのカウンタ変数クリア
         pobj->ThreadInfo.time_over_count = 0;   // 予定周期オーバーカウントクリア
@@ -665,7 +639,12 @@ VOID CALLBACK AlarmHandlar(UINT uID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD d
         KNLManageSet.Knl_Time.wDay          = (WORD)(tmttl % 24);
 
         WCHAR tbuf[32];
-        wsprintf(tbuf, L"%3d %02d:%02d:%02d", KNLManageSet.Knl_Time.wDay, KNLManageSet.Knl_Time.wHour, KNLManageSet.Knl_Time.wMinute, KNLManageSet.Knl_Time.wSecond);
+        swprintf_s(tbuf, (unsigned int)(sizeof(tbuf) / sizeof(*tbuf)),
+                   L"%3d %02d:%02d:%02d",
+                   KNLManageSet.Knl_Time.wDay,
+                   KNLManageSet.Knl_Time.wHour,
+                   KNLManageSet.Knl_Time.wMinute,
+                   KNLManageSet.Knl_Time.wSecond);
         SendMessage(hWnd_status_bar, SB_SETTEXT, 5, (LPARAM)tbuf);
     }
 }
@@ -720,23 +699,23 @@ HWND CreateTaskSettingWnd(HWND hWnd)
                                NULL);
     // Task Setting用タブ作成
     for (unsigned i = 0; i < VectpCTaskObj.size(); i++) {
-        CTaskObj *pObj = (CTaskObj*)VectpCTaskObj[i];
+        CTaskObj* pTaskObj = reinterpret_cast<CTaskObj*>(VectpCTaskObj[i]);
 
         tc[i].mask    = (TCIF_TEXT | TCIF_IMAGE);
-        tc[i].pszText = pObj->ThreadInfo.sname;
-        tc[i].iImage  = pObj->ThreadInfo.index;
+        tc[i].pszText = const_cast<LPWSTR>(pTaskObj->ThreadInfo.sname.c_str());
+        tc[i].iImage  = pTaskObj->ThreadInfo.index;
         SendMessage(hTab, TCM_INSERTITEM, (WPARAM)0, (LPARAM)&tc[i]);
-        pObj->ThreadInfo.hWnd_opepane = CreateDialog(hInst, L"IDD_DIALOG_TASKSET1", hWnd, (DLGPROC)TaskTabDlgProc);
-        pObj->set_panel_pb_txt();
-        MoveWindow(pObj->ThreadInfo.hWnd_opepane, TAB_POS_X, TAB_POS_Y + TAB_SIZE_H, TAB_DIALOG_W, TAB_DIALOG_H - TAB_SIZE_H, TRUE);
+        pTaskObj->ThreadInfo.hWnd_opepane = CreateDialog(hInst, L"IDD_DIALOG_TASKSET1", hWnd, (DLGPROC)TaskTabDlgProc);
+        pTaskObj->set_window();
+        MoveWindow(pTaskObj->ThreadInfo.hWnd_opepane, TAB_POS_X, TAB_POS_Y + TAB_SIZE_H, TAB_DIALOG_W, TAB_DIALOG_H - TAB_SIZE_H, TRUE);
 
         // 初期値はindex 0のウィンドウを表示
         if (i == 0) {
-            ShowWindow(pObj->ThreadInfo.hWnd_opepane, SW_SHOW);
-            SetWindowText(GetDlgItem(pObj->ThreadInfo.hWnd_opepane, IDC_STATIC_TASKNAME), pObj->ThreadInfo.name);   // タスク名をスタティックテキストに表示
+            ShowWindow(pTaskObj->ThreadInfo.hWnd_opepane, SW_SHOW);
+            SetWindowText(GetDlgItem(pTaskObj->ThreadInfo.hWnd_opepane, IDC_STATIC_TASKNAME), pTaskObj->ThreadInfo.name.c_str());   // タスク名をスタティックテキストに表示
         }
         else {
-            ShowWindow(pObj->ThreadInfo.hWnd_opepane, SW_HIDE);
+            ShowWindow(pTaskObj->ThreadInfo.hWnd_opepane, SW_HIDE);
         }
     }
 
@@ -761,7 +740,7 @@ LRESULT CALLBACK TaskTabDlgProc(HWND hDlg, UINT msg, WPARAM wp, LPARAM lp)
 
             // メッセージ用リスト
             LVCOLUMN lvcol;
-            LPTSTR   strItem0[] = {(LPTSTR)(L"time"), (LPTSTR)(L"message")};    // 列ﾗﾍﾞﾙ
+            LPTSTR   strItem0[] = {(LPTSTR)(L"time"), (LPTSTR)(L"message")};    // 列ラベル
             int      CX[] = {60, 600};                                          // 列幅
 
             // リストコントロール設定
@@ -788,8 +767,8 @@ LRESULT CALLBACK TaskTabDlgProc(HWND hDlg, UINT msg, WPARAM wp, LPARAM lp)
         break;
     case WM_COMMAND:
         {
-            CTaskObj* pObj = (CTaskObj*)VectpCTaskObj[VectpCTaskObj.size() - TabCtrl_GetCurSel(hTabWnd) - 1];
-            pObj->PanelProc(hDlg, msg, wp, lp);
+            CTaskObj* pObj = reinterpret_cast<CTaskObj*>(VectpCTaskObj[VectpCTaskObj.size() - TabCtrl_GetCurSel(hTabWnd) - 1]);
+            pObj->cb_panel_proc(hDlg, msg, wp, lp);
         }
         break;
     default:

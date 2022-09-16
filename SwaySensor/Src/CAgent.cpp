@@ -15,3 +15,12 @@ CAgent::CAgent()
 CAgent::~CAgent()
 {
 }
+
+/// @brief
+/// @param
+/// @return
+/// @note
+void CAgent::set_window(void)
+{
+    return;
+}

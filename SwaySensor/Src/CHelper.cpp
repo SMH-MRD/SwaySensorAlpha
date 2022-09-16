@@ -17,19 +17,34 @@ CHelper::~CHelper()
 {
 }
 
-/// @brief stringŒ^‚ğwstringŒ^‚É•ÏŠ·‚µ‚Ü‚·
-/// @param src :•ÏŠ·‘O“ü—Í
-/// @param dest:•ÏŠ·Œão—Í
-/// @return 
+/// @brief
+/// @param
+/// @return
 /// @note
-void CHelper::Str2Wstr(const string& src, wstring& dest)
+std::wstring CHelper::conv_string(const std::string& input)
 {
-    setlocale(LC_ALL, "");
+	size_t   ptr;
+	wchar_t* buffer = new wchar_t[input.size() + 1];
 
-    wchar_t* wcs = new wchar_t[src.length() + 1];
-    size_t   ret_val;
-    mbstowcs_s(&ret_val, wcs, src.length() + 1, src.c_str(), _TRUNCATE);
-    dest = wcs; delete[] wcs;
+	mbstowcs_s(&ptr, buffer, input.size() + 1, input.c_str(), _TRUNCATE);
+	std::wstring str = buffer;
+	delete[] buffer;
 
-    return;
+	return str;
+}
+
+/// @brief
+/// @param
+/// @return
+/// @note
+std::string CHelper::conv_string(const std::wstring& input)
+{
+	size_t ptr;
+	char*  buffer = new char[input.size() * MB_CUR_MAX + 1];
+
+	wcstombs_s(&ptr, buffer, input.size() * MB_CUR_MAX + 1, input.c_str(), _TRUNCATE);
+	std::string str = buffer;
+	delete[] buffer;
+
+	return str;
 }

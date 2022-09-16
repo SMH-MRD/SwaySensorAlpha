@@ -2,13 +2,17 @@
 
 #include <string>
 
-using namespace std;
-
 //============================================================================
 // define定義
-#define Bitcheck(a, b)                  ((a >> b) & 1)
-#define Bitset(a, b)                    (a |= (1 << b))
-#define Bitclear(a, b)                  (a &= ~(1 << b))
+#define Bitcheck(a, b)  ((a >> b) & 1)
+#define Bitset(a, b)    (a |= (1 << b))
+#define Bitclear(a, b)  (a &= ~(1 << b))
+
+//============================================================================
+// 構造体/共用体定義
+
+//////////////////////////////////////////////////////////////////////////////
+// CHelper
 
 class CHelper
 {
@@ -16,8 +20,8 @@ public:
     CHelper();
     ~CHelper();
 
-    // 文字列
-    static void Str2Wstr(const string& src, wstring& dest);                                   // string→wstringに変換
+    static std::wstring conv_string(const std::string& input);
+    static std::string  conv_string(const std::wstring& input);
 
 protected:
 

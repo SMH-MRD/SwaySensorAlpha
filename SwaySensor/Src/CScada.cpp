@@ -15,3 +15,12 @@ CScada::CScada()
 CScada::~CScada()
 {
 }
+
+/// @brief
+/// @param
+/// @return
+/// @note
+void CScada::set_window(void)
+{
+    return;
+}
