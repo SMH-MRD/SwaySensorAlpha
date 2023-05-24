@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30711.63
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SwaySensor", "SwaySensor\SwaySensor.vcxproj", "{BC08E6BB-0A5C-452F-BB6D-42AD7F6CE911}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SwaySensor", "Src\SwaySensor\SwaySensor.vcxproj", "{BC08E6BB-0A5C-452F-BB6D-42AD7F6CE911}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SockUDP", "SockUDP\SockUDP.vcxproj", "{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SockUDP", "Lib\SockUDP\SockUDP.vcxproj", "{8F1CECF8-E5DE-4F4E-99F7-2BEAA6FF01B0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
