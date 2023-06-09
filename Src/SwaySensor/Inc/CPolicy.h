@@ -35,6 +35,11 @@ typedef struct TAG_SWAY_ZERO_DATA {
 //////////////////////////////////////////////////////////////////////////////
 // CPolicy
 
+/// <summary>
+/// Policyタスクでは、以下の処理を担当します
+/// <para>取り込んだカメラ画像を処理して出力値を計算</para>
+/// </summary>
+
 class CPolicy : public CTaskObj
 {
 public:

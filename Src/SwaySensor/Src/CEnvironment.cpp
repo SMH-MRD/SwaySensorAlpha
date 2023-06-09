@@ -51,7 +51,7 @@ IMAGE_DATA CEnvironment::get_opencv_image(void)
     //----------------------------------------------------------------------------
     // 画像データ取得(画像ファイル)
     if (m_cnfgcmn.img_source_camera != static_cast<uint32_t>(ENUM_GRAB_IMAGE::GRAB_CAMERA)) {
-        m_img_src.data_opencv = cv::imread(CHelper::conv_string(m_cnfgcmn.img_source_fname));
+        m_img_src.data_opencv = cv::imread(CHelper::conv_string(m_cnfgcmn.img_source_fname));//ファイル名の指定はstring型 wstring->string
         if (m_img_src.data_opencv.data != NULL) {
 	        m_img_src.status |= static_cast<uint32_t>(ENUM_IMAGE_STATUS::ENABLED);  // 画像ステータス:画像有効
 	        m_img_src.width   = m_img_src.data_opencv.cols ;                        // 画像サイズ(水平画素) [pixel]
@@ -68,9 +68,9 @@ IMAGE_DATA CEnvironment::get_opencv_image(void)
  
     //----------------------------------------------------------------------------
     // 画像データ取得(カメラ)
-    if (m_img_src.data_bgr != NULL) {
+    if (m_img_src.data_bgr != NULL) {//data_bgrは、initializeでnewしてバッファ確保
         if ((m_telicam_lib != NULL) &&
-            (!(m_infosys_data.status & static_cast<uint32_t>(ENUM_SYSTEM_STATUS::CAMERA_RESET_RUN)))) { // カメラ再接続中
+            (!(m_infosys_data.status & static_cast<uint32_t>(ENUM_SYSTEM_STATUS::CAMERA_RESET_RUN)))) { // カメラ再接続中でない
             // 画像情報を取得
             if ((m_telicam_lib->get_image(m_img_src.data_bgr) >= 0) &&
                 (m_telicam_lib->get_image_size(&m_img_src.width, &m_img_src.height) >= 0) &&
@@ -189,6 +189,8 @@ HRESULT CEnvironment::initialize(void)
     //----------------------------------------------------------------------------
     // 共有データ初期化
     // CSharedクラスオブジェクトの生成
+
+    /// <remark> static メンバーにメソッド経由でアクセス </remark>
     if (m_shared == NULL) {
         if ((m_shared = new CShared()) == NULL) {
             _RPTWN(_CRT_WARN, L"%s\n", L">>>[CEnvironment::init_task]<Error>Creating of CShared");
@@ -201,7 +203,7 @@ HRESULT CEnvironment::initialize(void)
     msg = std::format(L"<Information>Created CShared");
     outp_msg_to_listview(msg);
 
-    // 共有データ読込み
+    // 共有データ読込み（メインスレッドでinifileからstaticメンバに設定値セット済のものを自メンバー変数に読み込み）
     m_shared->get_app_config(&m_cnfgcmn);           // 共通設定
     m_shared->get_app_config(&m_cnfgcam);           // カメラ設定
     m_shared->get_app_config(&m_cnfgtlt);           // 傾斜計設定
@@ -239,7 +241,7 @@ HRESULT CEnvironment::initialize(void)
 	ZeroMemory(m_img_src.data_bgr, (sizeof(uint8_t) * IMAGE_SIZE * IMAGE_FORMAT_SIZE)); // The all clear the data area
 
     // CTeliCamLibクラスオブジェクトの生成
-    if (m_cnfgcmn.img_source_camera == static_cast<uint32_t>(ENUM_GRAB_IMAGE::GRAB_CAMERA)) {   // カメラ画像取込み
+    if (m_cnfgcmn.img_source_camera == static_cast<uint32_t>(ENUM_GRAB_IMAGE::GRAB_CAMERA)) {   // カメラ画像取込み（ファイル/カメラ画像取り込みの判定：iniファイル設定値）
         TELICAM_LIB_INFO caminfo;   // カメラの情報
         caminfo.details.cnfg.valid          = TRUE;                         // カメラの有効または無効[0:無効 1:有効]
         caminfo.details.cnfg.ipaddress      = m_cnfgcam.basis.ipaddress;    // カメラのIPアドレス
@@ -410,7 +412,7 @@ void CEnvironment::close(void)
     if (m_td_canopen_tilt_get_hndl != NULL) {
         if (m_td_canopen_tilt_get_stat) {
             m_td_canopen_tilt_get_stat = FALSE;
-            ResumeThread(m_td_canopen_tilt_get_hndl);
+            ResumeThread(m_td_canopen_tilt_get_hndl);               //スレッドが中断していれば再開させて終わらせる
             WaitForSingleObject(m_td_canopen_tilt_get_hndl, 500);   // スレッドが終了するまで待機
         }
         CloseHandle(m_td_canopen_tilt_get_hndl);
@@ -423,8 +425,8 @@ void CEnvironment::close(void)
     if (m_td_canopen_tilt_preset_hndl != NULL) {
         if (m_td_canopen_tilt_preset_stat) {
             m_td_canopen_tilt_preset_stat = FALSE;
-            ResumeThread(m_td_canopen_tilt_preset_hndl);
-            WaitForSingleObject(m_td_canopen_tilt_preset_hndl, 500);    // スレッドが終了するまで待機
+            ResumeThread(m_td_canopen_tilt_preset_hndl);              //スレッドが中断していれば再開させて終わらせる
+            WaitForSingleObject(m_td_canopen_tilt_preset_hndl, 500);  // スレッドが終了するまで待機
         }
         CloseHandle(m_td_canopen_tilt_preset_hndl);
 	    m_td_canopen_tilt_preset_hndl = NULL;																								// Handle is closed.
@@ -436,7 +438,7 @@ void CEnvironment::close(void)
     if (m_td_canopen_start_hndl != NULL) {
         if (m_td_canopen_start_stat) {
             m_td_canopen_start_stat = FALSE;
-            ResumeThread(m_td_canopen_start_hndl);
+            ResumeThread(m_td_canopen_start_hndl);              //スレッドが中断していれば再開させて終わらせる
             WaitForSingleObject(m_td_canopen_start_hndl, 500);  // スレッドが終了するまで待機
         }
         CloseHandle(m_td_canopen_start_hndl);
@@ -527,12 +529,12 @@ void CEnvironment::proc_main(void)
     std::wstring msg;
 
     //----------------------------------------------------------------------------
-    // 実行周期計測
+    // 実行周期計測　　#LARGE_INTEGER(union:QuadPartはlonglong)
     LARGE_INTEGER frequency;    // システムの周波数
     LARGE_INTEGER start_count;  // 現在のカウント数
     LONGLONG      span_usec;    // 時間の間隔[usec]
 
-    QueryPerformanceFrequency(&frequency);  // システムの周波数
+    QueryPerformanceFrequency(&frequency);  // システムの周波数 １秒あたりのカウント数
     QueryPerformanceCounter(&start_count);  // 現在のカウント数
     span_usec = ((start_count.QuadPart - m_cycle_time_counter.QuadPart) * 1000000L) / frequency.QuadPart;   //
     if ((m_cycle_time = static_cast<uint32_t>(span_usec / 1000)) <= 0) { // 実行周期[ms]
@@ -559,6 +561,8 @@ void CEnvironment::proc_main(void)
             msg = std::format(L"<Error>m_td_camera_restart_hndl NULL");
             outp_msg_to_listview(msg);
         }
+
+        //再起動フラグクリア
         if (m_infosys_data.status & static_cast<uint32_t>(ENUM_SYSTEM_STATUS::CAMERA_RESET_COMPLETED)) {    // カメラ再接続完了
             m_infosys_data.status &= ~(static_cast<uint32_t>(ENUM_SYSTEM_STATUS::CAMERA_RESET_REQ)     |    // カメラ再接続要求
                                        static_cast<uint32_t>(ENUM_SYSTEM_STATUS::CAMERA_RESET_REQ_MCC) |    // カメラ再接続要求(MCC)
@@ -599,6 +603,10 @@ void CEnvironment::proc_main(void)
 
     //----------------------------------------------------------------------------
     // 傾斜計データの取得
+    // 解説:　スレッドtd_canopen_tilt_getをResume()で起動をかけて傾斜計に要求送信
+    //      →データの受信は、CANopen Apiに登録した受信用のコールバック CCANopenLib::cb_can_rxによりCCANopenLib::m_tiltix_slopeに情報セット
+    //      →要求をm_canopen_lib->get_tiltix_slope()で内容をコピー 
+
     if (m_td_canopen_tilt_get_hndl != NULL) {
         ResumeThread(m_td_canopen_tilt_get_hndl);
     }
@@ -1352,6 +1360,8 @@ unsigned WINAPI CEnvironment::td_canopen_start(LPVOID lpParam)
 
         //----------------------------------------------------------------------------
         // CANopen起動処理
+        
+        // #CANopen.iniのファイルパス取得　CANopen.iniは、ボードメーカーのapiセット付属のini_generator.exeで作成
         wchar_t path[_MAX_PATH], szDrive[_MAX_DRIVE], szPath[_MAX_PATH], szFName[_MAX_FNAME], szExt[_MAX_EXT];
         GetModuleFileName(NULL, path, sizeof(path) / sizeof(*path));    // exe failのpathを取得
         _wsplitpath_s(path,
@@ -1365,6 +1375,8 @@ unsigned WINAPI CEnvironment::td_canopen_start(LPVOID lpParam)
 
         //----------------------------------------------------------------------------
         // CANopenネットワークの有効化
+
+       // #dllの"EMUCCANOpenEnable"のモジュール実行 引数はCANopen.iniファイルとCANOPEN_CB_INFO構造体（=ユーザ定義のコールバック関数ポインタのセット）
         if ((stat = myclass->m_canopen_lib->network_enable(path)) != 0) {
             _RPTWN(_CRT_WARN, L"%s(%d)\n", L">>>[CEnvironment::td_canopen_start]<Error>Enable of CCANopenLib", stat);
             msg = std::format(L"<Error>Failed in CCANopenLib::network_enable() ({:d})", stat);
@@ -1378,6 +1390,8 @@ unsigned WINAPI CEnvironment::td_canopen_start(LPVOID lpParam)
 
         //----------------------------------------------------------------------------
         // CANOpen NMT通信オブジェクトの送信 (Operational)
+
+        // #dllの"EMUCCANOpenSetState"のモジュール実行 引数はポート,スレーブ（傾斜計）のノードID,状態指定(ここでは傾斜計をPreOperation→Operationへ)）
         PCONFIG_CANOPEN cnfg_canopen = &myclass->m_cnfgtlt.canopen;
         if ((stat = myclass->m_canopen_lib->set_state(CANOPEN_NMT_COMMAND::OPERATIONAL)) != 0) {
             _RPTWN(_CRT_WARN, L"%s(%d)\n", L">>>[CEnvironment::td_canopen_start]<Error>Set state of CCANopenLib", stat);
@@ -1392,6 +1406,8 @@ unsigned WINAPI CEnvironment::td_canopen_start(LPVOID lpParam)
 
         //----------------------------------------------------------------------------
         // CANOpen RTR CAN SIDフレームの送信
+
+        // #dllの"EMUCCANOpenRqstState"のモジュール実行 引数は無し（傾斜計が正常に機能しているか確認？）　）
         if((stat = myclass->m_canopen_lib->request_state()) != 0) {
             _RPTWN(_CRT_WARN, L"%s(%d)\n", L">>>[CEnvironment::td_canopen_start]<Error>Request state of CCANopenLib", stat);
             msg = std::format(L"<Error>Failed in CCANopenLib::request_state() ({:d})", stat);
@@ -1406,9 +1422,13 @@ unsigned WINAPI CEnvironment::td_canopen_start(LPVOID lpParam)
         //----------------------------------------------------------------------------
         // CANopen設定
         int32_t stat;   //
-        int32_t cob_id = static_cast<uint32_t>(CANOPEN_TILTIX_CAN_COB_ID::SDO_RX) 
-                       + static_cast<uint32_t>(myclass->m_cnfgtlt.canopen.node_id);
-        // Digital recursive filter
+        int32_t cob_id = static_cast<uint32_t>(CANOPEN_TILTIX_CAN_COB_ID::SDO_RX)   //SDO_RX : 0x600 SDOのファンクションコード
+                       + static_cast<uint32_t>(myclass->m_cnfgtlt.canopen.node_id); //node ID: 1
+        //cob_id:SDO(rx:リクエスト）のファンクションコード0x600＋node ID
+
+        // Digital recursive filter（再帰形デジタルフィルター設定）
+        // #dllの"EMUCCANOpenTx"のモジュール実行 引数 
+        //cob_id(comオブジェクト：0x601),command(DOWNLOAD_REQUEST, od_id(オブジェクト：フィルタ,od_sub_id(サブオブジェクト）,設定値)　）
         if ((stat = canopen->send_frame(cob_id,
                                         static_cast<uint8_t>(CANOPEN_TILTIX_CAN_COMMAND::DOWNLOAD_REQUEST),
                                         static_cast<int16_t>(CANOPEN_TILTIX_OD_INDEX::DIGITAL_RECURSIVE_FILTER),
@@ -1424,7 +1444,9 @@ unsigned WINAPI CEnvironment::td_canopen_start(LPVOID lpParam)
             myclass->outp_msg_to_listview(msg);
         }
 
-        // Moving Average Filter
+        // Moving Average Filter（移動平均フィルター設定）
+        // #dllの"EMUCCANOpenTx"のモジュール実行 引数 
+        //cob_id(comオブジェクト：0x601),command(DOWNLOAD_REQUEST, od_id(オブジェクト：フィルタ,od_sub_id(サブオブジェクト）,設定値)　）
         if ((stat = canopen->send_frame(cob_id,
                                         static_cast<uint8_t>(CANOPEN_TILTIX_CAN_COMMAND::DOWNLOAD_REQUEST),
                                         static_cast<int16_t>(CANOPEN_TILTIX_OD_INDEX::MOVING_AGERAGE_FILTER),
@@ -1440,7 +1462,9 @@ unsigned WINAPI CEnvironment::td_canopen_start(LPVOID lpParam)
             myclass->outp_msg_to_listview(msg);
         }
 
-        // Resolution
+        // Resolution（傾斜計分解能設定 0.01°）
+        // #dllの"EMUCCANOpenTx"のモジュール実行 引数 
+        //cob_id(comオブジェクト：0x601),command(DOWNLOAD_REQUEST, od_id(オブジェクト：フィルタ,od_sub_id(サブオブジェクト）,設定値)　）
         if ((stat = canopen->send_frame(cob_id,
                                         static_cast<uint8_t>(CANOPEN_TILTIX_CAN_COMMAND::DOWNLOAD_REQUEST),
                                         static_cast<int16_t>(CANOPEN_TILTIX_OD_INDEX::MOVING_AGERAGE_FILTER),
@@ -1487,21 +1511,22 @@ unsigned WINAPI CEnvironment::td_canopen_tilt_preset(LPVOID lpParam)
         // Standby of thread
         SuspendThread(myclass->m_td_canopen_tilt_preset_hndl);  // Suspend thread
 
+        //プリセット要求無し
         if (!(myclass->m_infosys_data.status & static_cast<uint32_t>(ENUM_SYSTEM_STATUS::TILT_PRESET_REQ)) &&       // 傾斜計プリセット要求
             !(myclass->m_infosys_data.status & static_cast<uint32_t>(ENUM_SYSTEM_STATUS::TILT_PRESET_REQ_MCC))) {   // 傾斜計プリセット要求(MCC)
             continue;
         }
-
+        //CANopenLibのインスタンス無し
         if (canopen == NULL) {
             myclass->m_infosys_data.status |= static_cast<uint32_t>(ENUM_SYSTEM_STATUS::TILT_PRESET_COMPLETED); // 傾斜計プリセット完了
             continue;
         }
-
+        //傾斜計プリセット実行中
         if ((myclass->m_infosys_data.status & static_cast<uint32_t>(ENUM_SYSTEM_STATUS::TILT_PRESET_RUN)) ||        // 傾斜計プリセット実行中
             (myclass->m_infosys_data.status & static_cast<uint32_t>(ENUM_SYSTEM_STATUS::TILT_PRESET_COMPLETED))) {  // 傾斜計プリセット完了
             continue;
         }
-
+        //CANopenが有効でない
         if (!(myclass->m_infotlt_data.status & static_cast<uint32_t>(ENUM_TILT_STATUS::CANOPEN_STARTED)) ||
             !(canopen->get_canopen_stat() & static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::NW_EABLE))) {
             myclass->m_infosys_data.status &= ~(static_cast<uint32_t>(ENUM_SYSTEM_STATUS::TILT_PRESET_RUN));        // 傾斜計プリセット実行中
@@ -1564,15 +1589,16 @@ unsigned WINAPI CEnvironment::td_canopen_tilt_get(LPVOID lpParam)
     CCANopenLib*  canopen = (myclass->m_canopen_lib);   // CCANopenLib object
     std::wstring  msg;
     int32_t       stat;
-    int32_t       cob_id = static_cast<uint32_t>(CANOPEN_TILTIX_CAN_COB_ID::SDO_RX) 
+    int32_t       cob_id = static_cast<uint32_t>(CANOPEN_TILTIX_CAN_COB_ID::SDO_RX)     //cob_id:SDO(rx:リクエスト）のファンクションコード0x600＋node ID
                          + static_cast<uint32_t>(myclass->m_cnfgtlt.canopen.node_id);
-
+    
     _RPTWN(_CRT_WARN, L"%s\n", L">>>[CEnvironment::td_canopen_tilt_get]<Start>");
     while (myclass->m_td_canopen_tilt_get_stat) {
         //----------------------------------------------------------------------------
         // Standby of thread
         SuspendThread(myclass->m_td_canopen_tilt_get_hndl);  // Suspend thread
 
+        // ライブラリが読み込めていない
         if (canopen == NULL) {
             // 傾斜計データ情報
             myclass->m_infotlt_data.status |= static_cast<uint32_t>(ENUM_TILT_STATUS::ERR_CANOPEN_READ);    // ステータス情報:データ読み込みエラー
@@ -1586,7 +1612,8 @@ unsigned WINAPI CEnvironment::td_canopen_tilt_get(LPVOID lpParam)
             }
             continue;
         }
-
+ 
+        // CANopen起動中　または　CANopenネットワーク未確立
         if (!(myclass->m_infotlt_data.status & static_cast<uint32_t>(ENUM_TILT_STATUS::CANOPEN_STARTED)) ||
             !(canopen->get_canopen_stat() & static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::NW_EABLE))) {
             // 傾斜計データ情報

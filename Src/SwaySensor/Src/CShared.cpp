@@ -110,12 +110,12 @@ BOOL CShared::set_app_config_ini(wchar_t* file_name)
 #pragma region SET_CONFIG_COMMON
     PCONFIG_COMMON cnfg_common = &m_app_cnfg.common;    // 共通設定
 
-    // カメラ画像取込み
+     // カメラ画像取込み
     if (GetPrivateProfileString(INI_SCT_COMMON,
                                 INI_KEY_COMMON_IMAGE_SOURCE_CAMERA,
                                 L"", str, sizeof(str) / sizeof(*str),
-                                file_name) <= 0) {
-        return FALSE;
+                                file_name) <= 0) { 
+        return FALSE; //画像取り込みモードの設定値が読み込めなかった
     }
     else {
         if ((INI_KEY_COMMON_IMAGE_SOURCE_CAMERA_ITEM_NUM + 1) != swscanf_s(str,
@@ -731,6 +731,7 @@ BOOL CShared::set_app_config_ini(wchar_t* file_name)
         return FALSE;
     }
     else {
+        //CANopen.iniファイル名,ポート番号,ノードID情報取り込み
         wchar_t setup_fname[256] = {0};
         if ((INI_KEY_TILTMETER_CANOPEN_ITEM_NUM + 1) != swscanf_s(str,
                                                                   L"%[^,],%hhu,%hhx,%[^,]",
@@ -742,9 +743,10 @@ BOOL CShared::set_app_config_ini(wchar_t* file_name)
         }
         else {
             cnfg_tiltmeter->canopen.setup_fname = setup_fname;
+            //removeで空白を除き前詰にしてその末尾以降の余分な文字削除
             cnfg_tiltmeter->canopen.setup_fname.erase(remove(cnfg_tiltmeter->canopen.setup_fname.begin(), cnfg_tiltmeter->canopen.setup_fname.end(),' '),
                                                       cnfg_tiltmeter->canopen.setup_fname.end());
-        }
+         }
     }
     // 傾斜計フィルター
     if (GetPrivateProfileString(INI_SCT_TILTMETER,

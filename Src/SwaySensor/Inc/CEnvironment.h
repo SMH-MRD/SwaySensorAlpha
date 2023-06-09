@@ -48,6 +48,14 @@ typedef struct TAG_IMAGE_DATA {
 //////////////////////////////////////////////////////////////////////////////
 // CEnvironment
 
+/// <summary>
+/// Environmentタスクでは、以下の処理を担当します
+/// <para>カメラの再起動処理</para>
+/// <para>カメラの露光時間の設定(APIへの設定はスレッドで実行される)</para>
+/// <para>傾斜計プリセット処理</para>
+/// <para>傾斜計データの取得</para>
+/// </summary>
+
 class CEnvironment : public CTaskObj
 {
 public:

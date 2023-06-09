@@ -82,11 +82,20 @@ int32_t CCANopenLib::initialize(uint8_t port, uint8_t node_id)
     // DLLモジュールハンドルの取得
     if (m_dll_hndl == NULL) {
         if ((m_dll_hndl = LoadLibrary(LIB_EMUC_CANOPEN)) == NULL) {
+            //if ((m_dll_hndl = LoadLibrary(L"kernel32.dll")) == NULL) {
+            DWORD	dwError = GetLastError();
+            LPVOID lpMsgBuf;
+            FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                0, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&lpMsgBuf, 0, NULL);
+
+            std::wstring wstr = (LPCTSTR)lpMsgBuf;
+            LocalFree(lpMsgBuf);
+
             m_canopen_stat |= static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::ERR_LIBLOAD);   // CANopenステータス:ライブラリロード失敗
             return -1;
         }
     }
-    m_canopen_stat &= (~static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::ERR_LIBLOAD));    // CANopenステータス:ライブラリロード失敗
+    m_canopen_stat &= (~static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::ERR_LIBLOAD));    // CANopenステータス:ライブラリロード失敗クリア
 
     //----------------------------------------------------------------------------
     // DLLモジュール関数アドレスの取得
@@ -143,7 +152,7 @@ int32_t CCANopenLib::network_enable(wchar_t* file_name)
 {
     uint32_t err_stat = (static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::ERR_LIBLOAD) |   // CANopenステータス:ライブラリロード失敗
                          static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::ERR_MODADRS));   // CANopenステータス:モジュールアドレス異常
-
+     
     if (m_canopen_stat & err_stat) {    // CANopenステータス:異常
         m_canopen_stat &= (~static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::NW_EABLE));   // CANopenステータス:ネットワーク有効
         return -1;
@@ -155,11 +164,13 @@ int32_t CCANopenLib::network_enable(wchar_t* file_name)
     char    fname[_MAX_PATH];
     size_t  num;
 
+    //wcharのCANopen.iniのファイルパスをマルチバイトに変換（wcのs to mbs）
     if (wcstombs_s(&num, fname, _MAX_PATH, file_name, _MAX_PATH - 1) != 0) {
         m_canopen_stat &= (~static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::NW_EABLE));   // CANopenステータス:ネットワーク有効
         return -2;
     }
-
+    //wcharのCANopen.iniのファイルパスをマルチバイトに変換（wcのs to mbs）
+    // dllの"EMUCCANOpenEnable"のモジュール実行
     if ((stat = m_EMUCCANOpenEnable(fname, m_cb_info)) != static_cast<uint32_t>(ENUM_EMUC_CANOPEN_API::SUCCESS)) {
         m_canopen_stat &= (~static_cast<uint32_t>(ENUM_EMUC_CANOPEN_STAT::NW_EABLE));   // CANopenステータス:ネットワーク有効
         return stat;
@@ -513,7 +524,7 @@ void CCANopenLib::cb_init_device(uint8_t port)
 /// @note
 void CCANopenLib::cb_can_rx(uint8_t port, uint32_t id, uint8_t* buf, uint8_t buf_len)
 {
-    uint32_t cobid = static_cast<uint32_t>(CANOPEN_TILTIX_CAN_COB_ID::SDO_TX) + m_node_id;  // COB-ID
+    uint32_t cobid = static_cast<uint32_t>(CANOPEN_TILTIX_CAN_COB_ID::SDO_TX) + m_node_id;  // COB-ID(Com Object ID)
 
     if (id == cobid) {
         //----------------------------------------------------------------------------
@@ -530,11 +541,11 @@ void CCANopenLib::cb_can_rx(uint8_t port, uint32_t id, uint8_t* buf, uint8_t buf
         if ((od_idx     == static_cast<uint16_t>(CANOPEN_TILTIX_OD_INDEX::SLOPE_LONG16)) &&
             (od_sub_idx == static_cast<uint8_t>(CANOPEN_TILTIX_OD_SUB_INDEX::VARIABLE))) {
             int16_t val = 0;
-            for (uint32_t count = 0; count < sizeof(uint16_t); count++) {
+            for (uint32_t count = 0; count < sizeof(uint16_t); count++) {//2byteデータをwordに合成
                 val += (static_cast<int16_t>(buf[idx++]) << (8 * count)) & (0x00FF << (8 * count));
             }
-            m_tiltix_slope.data[static_cast<uint32_t>(CANOPEN_TILTIX_SLOPE_AXIS::X)].val = val;
-            m_tiltix_slope.data[static_cast<uint32_t>(CANOPEN_TILTIX_SLOPE_AXIS::X)].count++;
+            m_tiltix_slope.data[static_cast<uint32_t>(CANOPEN_TILTIX_SLOPE_AXIS::X)].val = val; //受信データ
+            m_tiltix_slope.data[static_cast<uint32_t>(CANOPEN_TILTIX_SLOPE_AXIS::X)].count++;   //受信カウンタ
         }
         else if ((od_idx     == static_cast<uint16_t>(CANOPEN_TILTIX_OD_INDEX::SLOPE_LATERAL16)) &&
                  (od_sub_idx == static_cast<uint8_t>(CANOPEN_TILTIX_OD_SUB_INDEX::VARIABLE))) {

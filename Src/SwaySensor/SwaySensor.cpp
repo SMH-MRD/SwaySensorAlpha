@@ -178,14 +178,18 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     setlocale(LC_ALL, "");
 
     //----------------------------------------------------------------------------
-    // タスク間共有データ
+    /// <summary> タスク間共有データ </summury>
+    /// <remarks>
+    /// 共有データインスタンス生成し共有データ（staticメンバー）の初期化実施
+    /// 各タスクでもインスタンス生成しメソッド経由でアクセス　
+    /// </remarks>
     g_shared = NULL;
-    if ((g_shared = new CShared(TRUE)) == NULL) {
+    if ((g_shared = new CShared(TRUE)) == NULL) {   //引数TRUEでメンバ変数初期化
         return FALSE;
     }
-
+    // exe failのpathを取得
     wchar_t path[_MAX_PATH], szDrive[_MAX_DRIVE], szPath[_MAX_PATH], szFName[_MAX_FNAME], szExt[_MAX_EXT];
-    GetModuleFileName(NULL, path, sizeof(path) / sizeof(*path));    // exe failのpathを取得
+    GetModuleFileName(NULL, path, sizeof(path) / sizeof(*path));
     _wsplitpath_s(path,
                   szDrive, sizeof(szDrive) / sizeof(*szDrive),
                   szPath,  sizeof(szPath) / sizeof(*szPath),
@@ -194,22 +198,41 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     swprintf_s(path, sizeof(path) / sizeof(*path),
                L"%s%s%s%s.%s",
                szDrive, szPath, FOLDER_OF_INIFILE, szFName, EXT_OF_INIFILE);    // フォルダのパスとiniファイルのパスに合成
-    // ini file読み込みパラメータ設定
-    g_shared->set_app_config_ini(path);
+  
+    //---------------------------------------------------------------------------- 
+    /// <summary> ini fileから共有データへ各種パラーメータ読み込み </summury>
+    /// <remarks>
+    /// 【画像ファイル関連】,　【システム設定】(スレッド周期,機器ID),【タスク設定】(タスク名),　【通信設定】(ip),　
+    /// 【カメラ設定】(ip,ROI, パケット最大値,フレームレート,黒レベル設定,ガンマ補正,ホワイトバランスゲイン設定,視野角,輝度コントロールゲイン,異常判定値,起動設定)
+    /// 【傾斜計設定】(デバイス設定,傾斜計フィルター,フィルター時定数)　【取付寸法】(カメラ回転軸,取付角度,設置角度)
+    /// 【画像処理条件】(ROI設定,マスク画像,画像フィルター,検出アルゴリズム, 振れ検出フィルター,ゼロ点
+    /// </remarks>
+     g_shared->set_app_config_ini(path);
+
 
     //----------------------------------------------------------------------------
-    // タスク設定
+    /// <summary>タスク設定 </summury>
+    /// <remarks>
+    /// 【タスクアイコン】,【スレッド周期】,【各タスク設定】(インスタンス作成,参照リスト登録,icon,名前,サイクルタイム,ロジック選択),　
+    /// 【タスクIFウィンドウ設定】【各タスク初期化関数実行】
+    /// </remarks>
     init_tasks(hWnd);   // タスク個別設定
 
     InvalidateRect(hWnd, NULL, FALSE);  // WM_PAINTを発生させてアイコンを描画させる
     UpdateWindow(hWnd);
  
     //----------------------------------------------------------------------------
-    // タスク起動
+    /// <summary>タスク起動 </summary>
+    /// <remarks>
+    /// 各タスクオブジェクトに対応したスレッドを生成して起動する（ループ関数）　
+    /// </remarks>
     knl_task_startup();
 
     //----------------------------------------------------------------------------
-    // マルチメディアタイマー起動
+    /// <summary>マルチメディアタイマー起動 </summary>
+    /// <remarks>
+    /// 各タスクスレッド（ループ関数）の周期起動イベント生成用　
+    /// </remarks>
     {
         // マルチメディアタイマー精度設定
         TIMECAPS wTc;   // マルチメディアタイマー精度構造体

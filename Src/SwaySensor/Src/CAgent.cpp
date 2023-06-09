@@ -413,7 +413,7 @@ void CAgent::proc_main(void)
 
     //--------------------------------------------------------------------------
     // データ受信処理
-    if (m_sockrecv != NULL) {
+    if (m_sockrecv != NULL) {//CSockUDPのインスタンスinitialize()でnew()
         // socketのオープン
         if (m_sockrecv->get_sock_status() != SOCK_STATUS_OPEN) {
             std::string str = CHelper::conv_string(m_cnfgnet.local.ipaddress);

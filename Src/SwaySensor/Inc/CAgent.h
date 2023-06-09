@@ -141,6 +141,13 @@ typedef struct TAG_NW_SEND_DATA {
 //////////////////////////////////////////////////////////////////////////////
 // CAgent
 
+/// <summary>
+/// Agentタスクでは、以下の処理を担当します
+/// <para>センサカメラとのIF処理</para>
+/// <para>傾斜計とのIF処理</para>
+/// <para>制御PCとのIF処理</para>
+/// </summary>
+
 class CAgent : public CTaskObj
 {
 public:
